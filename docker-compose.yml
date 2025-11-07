@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lws-postgres
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - lws-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: lws-keycloak
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HTTP_ENABLED: true
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/providers:/opt/keycloak/providers
+      - ./keycloak/themes:/opt/keycloak/themes
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lws-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    container_name: lws-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - lws-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cid-resolver:
+    build:
+      context: .
+      dockerfile: services/cid-resolver/Dockerfile
+    container_name: lws-cid-resolver
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CID_CACHE_TTL=3600
+      - CID_HTTPS_ONLY=false
+      - CID_MAX_SIZE=10240
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+    networks:
+      - lws-network
+    volumes:
+      - ./services/cid-resolver:/app
+      - /app/node_modules
+
+  storage-server:
+    build:
+      context: .
+      dockerfile: services/storage-server/Dockerfile
+    container_name: lws-storage-server
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - STORAGE_REALM=http://localhost:3001/storage
+      - STORAGE_AS_URI=http://keycloak:8080/realms/lws
+      - STORAGE_BACKEND=filesystem
+      - STORAGE_PATH=/data/storage
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - TOKEN_LIFETIME=300
+      - CLOCK_SKEW_TOLERANCE=60
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./services/storage-server:/app
+      - storage_data:/data/storage
+      - /app/node_modules
+    depends_on:
+      - keycloak
+      - redis
+      - cid-resolver
+    networks:
+      - lws-network
+
+networks:
+  lws-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  storage_data:
