@@ -1,3 +1,5 @@
+:warning: This entire codebase is currently AI generated and not reviewed by a human.
+
 # LWS-Keycloak: Linked Web Storage Reference Implementation
 
 A reference implementation of the Linked Web Storage (LWS) authentication and authorization specifications using Keycloak.
