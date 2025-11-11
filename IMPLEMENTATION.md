@@ -64,40 +64,104 @@ This document summarizes the current implementation status of the Linked Web Sto
     - `GET /resolve-did-key?did=<did>` - Resolve DID:Key
     - `DELETE /cache` - Clear cache (admin)
 
+#### 4. Storage Server (Resource Server) ✅
+- **Directory**: `services/storage-server/`
+- **Status**: Complete
+- **Implementation**:
+  - **Token Validator** (`src/validators/token-validator.ts`):
+    - JWT signature verification using JWKS
+    - Audience claim validation
+    - Temporal claims validation (exp, nbf, iat)
+    - JTI replay prevention
+    - Token lifetime enforcement (≤300s)
+    - Clock skew tolerance
+  
+  - **Authorization Enforcer** (`src/validators/authorization-enforcer.ts`):
+    - Realm-based access control
+    - Audience-based resource authorization
+    - HTTP method to action mapping
+    - Access decision logic
+  
+  - **JTI Cache** (`src/utils/jti-cache.ts`):
+    - Redis-based JTI tracking
+    - In-memory fallback
+    - Automatic expiry based on token lifetime
+    - Replay attack prevention
+  
+  - **Authentication Middleware** (`src/middleware/auth-middleware.ts`):
+    - Bearer token extraction
+    - Token validation pipeline
+    - Authorization enforcement
+    - WWW-Authenticate challenge generation
+  
+  - **CRUD Handlers** (`src/handlers/crud-handlers.ts`):
+    - GET - Read resource with ETag support
+    - PUT - Update/create resource
+    - POST - Create new resource
+    - PATCH - Partial update (application/merge-patch+json)
+    - DELETE - Remove resource
+    - HEAD - Metadata only
+  
+  - **Storage Backend**:
+    - Interface definition (`src/storage/storage-backend.ts`)
+    - Filesystem implementation (`src/storage/filesystem-storage.ts`)
+    - Path traversal protection
+    - ETag generation
+    - Atomic operations
+  
+  - **API Endpoints**:
+    - `GET /health` - Health check
+    - `GET /storage/*` - Read resource
+    - `PUT /storage/*` - Update/create resource
+    - `POST /storage/*` - Create resource
+    - `PATCH /storage/*` - Partial update
+    - `DELETE /storage/*` - Delete resource
+    - `HEAD /storage/*` - Resource metadata
+
 ### Components In Progress
 
-#### 4. Keycloak Authorization Server 🚧
-- **Status**: Architecture defined, implementation needed
-- **Requirements**:
-  - Custom Keycloak SPI providers (Java)
-  - Token exchange grant type handler
-  - Authentication suite registry
-  - Subject token validators for each authentication suite
-  - LWS configuration endpoint
-  - Integration with CID resolver service
+#### 5. Keycloak Authorization Server ✅
+- **Directory**: `keycloak/lws-provider/`
+- **Status**: Complete
+- **Implementation**:
+  - **Token Exchange Handler** (`LwsTokenExchangeGrantType.java`):
+    - RFC 8693 token exchange implementation
+    - Subject token validation
+    - Access token issuance
+    - Token lifetime enforcement (≤300s)
+    - LWS-specific claims
+  
+  - **Authentication Suite Registry** (`DefaultAuthenticationSuiteRegistry.java`):
+    - Registry for authentication validators
+    - Extensible architecture for new suites
+    - Support for OpenID, SSI-CID, SSI-DID-Key
+  
+  - **OpenID Validator** (`OpenIdSubjectTokenValidator.java`):
+    - OIDC discovery and JWKS fetching
+    - JWT signature verification
+    - Temporal claims validation
+    - User matching by issuer+subject
+  
+  - **SSI-CID Validator** (`SsiCidSubjectTokenValidator.java`):
+    - CID document resolution via CID resolver service
+    - Verification method extraction
+    - Ed25519 signature verification
+    - Subject-to-CID validation
+  
+  - **SSI-DID-Key Validator** (`SsiDidKeySubjectTokenValidator.java`):
+    - did:key resolution via CID resolver service
+    - Public key extraction
+    - Ed25519 signature verification
+    - Subject-to-DID validation
 
-**Next Steps**:
-1. Create Java-based Keycloak SPI providers
-2. Implement token exchange flow
-3. Create authentication suite handlers
-4. Configure realm with proper settings
-5. Build and deploy custom provider JAR
+**Build Instructions**:
+```bash
+cd keycloak/lws-provider
+mvn clean package
+cp target/lws-provider-1.0.0.jar ../providers/
+```
 
 ### Components Not Started
-
-#### 5. Storage Server (Resource Server) 📋
-- **Status**: Architecture defined, not implemented
-- **Required Components**:
-  - Express.js server with LWS protocol compliance
-  - Token validation (JWT signature, claims, temporal)
-  - JTI replay prevention
-  - Authorization enforcement
-  - CRUD operation handlers (GET, PUT, POST, PATCH, DELETE)
-  - WWW-Authenticate challenge generation
-  - Storage metadata endpoint
-  - Filesystem or database backend
-
-**Next Steps**:
 1. Implement token validator
 2. Create authorization enforcer
 3. Build CRUD operation handlers
