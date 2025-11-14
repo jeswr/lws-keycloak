@@ -11,7 +11,7 @@ import jakarta.ws.rs.core.UriInfo;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
-import org.keycloak.services.resources.RealmResourceProvider;
+import org.keycloak.services.resource.RealmResourceProvider;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +39,7 @@ public class LwsRealmResourceProvider implements RealmResourceProvider {
         @Context UriInfo uriInfo
     ) {
         RealmModel realm = session.getContext().getRealm();
-        EventBuilder event = new EventBuilder(session, realm, null);
+        EventBuilder event = new EventBuilder(realm, session, session.getContext().getConnection());
 
         LwsTokenExchangeGrantType handler = new LwsTokenExchangeGrantType(session, realm, event);
 

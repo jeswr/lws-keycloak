@@ -1,17 +1,24 @@
 package org.lws.keycloak.protocol.tokenexchange;
 
+import org.keycloak.OAuth2Constants;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.models.ClientModel;
+import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.oidc.TokenManager;
 import org.keycloak.representations.AccessToken;
+import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.services.managers.AuthenticationManager;
-import org.keycloak.services.resources.Cors;
+import org.keycloak.services.managers.AuthenticationSessionManager;
+import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.protocol.oidc.TokenManager.AccessTokenResponseBuilder;
 
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -70,7 +77,7 @@ public class LwsTokenExchangeGrantType {
         }
 
         // Validate subject token
-        ValidationResult result = validator.validate(subjectToken, session, realm);
+        SubjectTokenValidator.ValidationResult result = validator.validate(subjectToken, session, realm);
         if (!result.isValid()) {
             return errorResponse("invalid_grant", result.getErrorDescription());
         }
@@ -81,27 +88,42 @@ public class LwsTokenExchangeGrantType {
             user = createUserFromSubjectToken(result);
         }
 
-        // Create access token
-        AccessToken token = createAccessToken(user, client, audience, scope, result);
+        // Create user session for token generation
+        UserSessionModel userSession = session.sessions().createUserSession(
+            realm,
+            user,
+            user.getUsername(),
+            null, // clientConnection
+            "lws-token-exchange", // authMethod
+            false, // rememberMe
+            null, // brokerSessionId
+            null  // brokerUserId
+        );
 
-        // Build token response
+        // Create access token with LWS-specific claims
+        AccessToken token = createAccessToken(user, client, audience, scope, result, userSession);
+
+        // Generate signed token using TokenManager
         TokenManager tokenManager = new TokenManager();
-        AccessToken.AccessTokenResponse response = tokenManager.responseBuilder(
-            realm, 
-            client, 
-            event, 
-            session, 
-            user, 
-            null
-        )
-        .accessToken(token)
-        .build();
+        String encodedToken;
+        try {
+            // Use the session's keys to encode the token
+            encodedToken = session.tokens().encode(token);
+        } catch (Exception e) {
+            return errorResponse("server_error", "Failed to generate access token");
+        }
 
-        // Add CORS headers
-        return Cors.add(headers, Response.ok(response))
-            .auth()
-            .allowedOrigins(client)
-            .build();
+        // Build response
+        AccessTokenResponse response = new AccessTokenResponse();
+        response.setToken(encodedToken);
+        response.setTokenType("Bearer");
+        response.setExpiresIn((long)(token.getExpiration() - (System.currentTimeMillis() / 1000)));
+        
+        if (scope != null && !scope.isEmpty()) {
+            response.setScope(scope);
+        }
+
+        return Response.ok(response).build();
     }
 
     /**
@@ -115,7 +137,7 @@ public class LwsTokenExchangeGrantType {
     /**
      * Create user from validated subject token
      */
-    private UserModel createUserFromSubjectToken(ValidationResult result) {
+    private UserModel createUserFromSubjectToken(SubjectTokenValidator.ValidationResult result) {
         UserModel user = session.users().addUser(realm, result.getSubject());
         
         // Set user attributes from subject token
@@ -142,29 +164,43 @@ public class LwsTokenExchangeGrantType {
         ClientModel client,
         String audience,
         String scope,
-        ValidationResult validationResult
+        SubjectTokenValidator.ValidationResult validationResult,
+        UserSessionModel userSession
     ) {
         AccessToken token = new AccessToken();
         
         // Standard claims
         token.subject(user.getId());
-        token.issuedFor(client.getClientId());
-        token.issuer(realm.getIssuer());
+        token.issuedFor(client != null ? client.getClientId() : "lws-exchange");
+        token.issuer(realm.getName());
+        token.issuedNow();
         
-        // LWS-specific claims
-        token.audience(audience != null ? audience : client.getClientId());
+        // LWS-specific: audience claim
+        if (audience != null && !audience.isEmpty()) {
+            token.addAudience(audience);
+        } else if (client != null) {
+            token.addAudience(client.getClientId());
+        }
         
         // Enforce token lifetime ≤ 300s per LWS spec
         int lifespanSeconds = Math.min(300, realm.getAccessTokenLifespan());
-        token.expiration((int)(System.currentTimeMillis() / 1000) + lifespanSeconds);
+        token.expiration((int)(token.getIat() + lifespanSeconds));
         
         // Add authentication suite metadata
         token.setOtherClaims("auth_suite", validationResult.getAuthSuite());
-        token.setOtherClaims("subject_token_id", validationResult.getSubjectTokenId());
+        if (validationResult.getSubjectTokenId() != null) {
+            token.setOtherClaims("subject_token_id", validationResult.getSubjectTokenId());
+        }
+        
+        // Session binding
+        token.setSessionState(userSession.getId());
         
         // Add scope if requested
         if (scope != null && !scope.isEmpty()) {
-            token.scope(scope);
+            String[] scopes = scope.split(" ");
+            for (String s : scopes) {
+                token.addAccess(s);
+            }
         }
         
         return token;
@@ -174,10 +210,10 @@ public class LwsTokenExchangeGrantType {
      * Build error response
      */
     private Response errorResponse(String error, String description) {
-        Map<String, String> errorResponse = Map.of(
-            "error", error,
-            "error_description", description
-        );
+        Map<String, String> errorResponse = new HashMap<>();
+        errorResponse.put("error", error);
+        errorResponse.put("error_description", description);
+        
         return Response.status(Response.Status.BAD_REQUEST)
             .entity(errorResponse)
             .build();

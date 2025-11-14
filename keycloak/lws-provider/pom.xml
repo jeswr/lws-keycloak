@@ -34,6 +34,14 @@
             <version>${keycloak.version}</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- JAX-RS API (annotations) for compilation -->
+        <dependency>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+            <version>3.1.0</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-server-spi-private</artifactId>
