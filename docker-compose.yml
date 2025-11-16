@@ -86,9 +86,9 @@ services:
       - redis
     networks:
       - lws-network
-    volumes:
-      - ./services/cid-resolver:/app
-      - /app/node_modules
+      # volumes:
+      #   - ./services/cid-resolver:/app
+      #   - /app/node_modules
 
   storage-server:
     build:
@@ -109,9 +109,10 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./services/storage-server:/app
+      # - ./services/storage-server:/app
+      # - /app/dist
       - storage_data:/data/storage
-      - /app/node_modules
+      # - /app/node_modules
     depends_on:
       - keycloak
       - redis

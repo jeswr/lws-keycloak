@@ -44,8 +44,9 @@ const jtiCache = new JTICache({
 });
 
 const tokenValidator = new TokenValidator({
-  issuer: config.asUri,
-  clockSkew: config.clockSkew,
+  asUri: config.asUri,
+  realm: config.realm,
+  clockSkewTolerance: config.clockSkew,
   jtiCache,
 });
 

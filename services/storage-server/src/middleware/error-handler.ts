@@ -21,23 +21,23 @@ export function errorHandler(
 ) {
   console.error('Error:', err);
 
-  if (err instanceof TokenValidationError) {
-    return res.status(err.statusCode).json({
-      error: err.code,
+  if (err.name === 'TokenValidationError') {
+    return res.status((err as any).statusCode || 401).json({
+      error: (err as any).code || 'INVALID_TOKEN',
       message: err.message,
     });
   }
 
-  if (err instanceof AuthorizationError) {
-    return res.status(err.statusCode).json({
-      error: err.code,
+  if (err.name === 'AuthorizationError') {
+    return res.status((err as any).statusCode || 403).json({
+      error: (err as any).code || 'FORBIDDEN',
       message: err.message,
     });
   }
 
   if (err instanceof StorageError) {
-    return res.status(err.statusCode).json({
-      error: err.code,
+    return res.status((err as any).statusCode || 500).json({
+      error: (err as any).code || 'STORAGE_ERROR',
       message: err.message,
     });
   }

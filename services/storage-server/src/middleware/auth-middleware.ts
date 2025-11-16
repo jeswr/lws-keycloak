@@ -30,7 +30,13 @@ export function authMiddleware(
 
     try {
       // Validate token
-      const claims = await tokenValidator.validate(token, requestedResource);
+      const result = await tokenValidator.validate(token);
+      
+      if (!result.valid || !result.claims) {
+        return sendUnauthorized(res, config, 'invalid_token');
+      }
+
+      const claims = result.claims as import('../validators/token-validator.js').TokenClaims;
 
       // Check authorization
       const allowed = authEnforcer.canAccess(claims, req.method, requestedResource);
@@ -48,14 +54,15 @@ export function authMiddleware(
       
       next();
     } catch (error) {
-      if (error instanceof TokenValidationError) {
-        return sendUnauthorized(res, config, error.code.toLowerCase());
+      const err = error as Error;
+      if (err.name === 'TokenValidationError') {
+        return sendUnauthorized(res, config, 'invalid_token');
       }
       
-      if (error instanceof AuthorizationError) {
-        return res.status(error.statusCode).json({
-          error: error.code,
-          message: error.message,
+      if (err.name === 'AuthorizationError') {
+        return res.status((err as any).statusCode || 403).json({
+          error: (err as any).code || 'FORBIDDEN',
+          message: err.message,
         });
       }
 

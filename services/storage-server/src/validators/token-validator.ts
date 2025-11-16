@@ -1,5 +1,25 @@
 import * as jose from 'jose';
 import { JTICache } from '../utils/jti-cache.js';
+export interface TokenClaims extends jose.JWTPayload {
+  sub: string;
+  iss: string;
+  aud: string;
+  exp: number;
+  iat: number;
+  jti: string;
+}
+
+export class TokenValidationError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode: number = 401
+  ) {
+    super(message);
+    this.name = 'TokenValidationError';
+  }
+}
+
 
 export interface TokenValidatorOptions {
   asUri: string;            // Authorization Server / Issuer URI
