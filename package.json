@@ -11,6 +11,7 @@
     "dev:all:parallel": "./scripts/dev-all.sh",
     "dev:storage": "cd services/storage-server && npm run dev",
     "dev:cid": "cd services/cid-resolver && npm run dev",
+    "dev:demo": "cd demo-app && npm run dev",
     "start": "node dist/index.js",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
@@ -21,7 +22,9 @@
     "docker:keycloak": "docker-compose up -d postgres redis keycloak",
     "docker:services": "docker-compose up -d cid-resolver storage-server",
     "docker:logs": "docker-compose logs -f",
-    "keycloak:setup": "tsx scripts/setup-keycloak.ts"
+    "keycloak:setup": "tsx scripts/setup-keycloak.ts",
+    "demo:install": "cd demo-app && npm install",
+    "demo:setup": "./scripts/setup-demo.sh"
   },
   "keywords": [
     "linked-web-storage",

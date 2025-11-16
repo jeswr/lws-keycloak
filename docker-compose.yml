@@ -120,6 +120,29 @@ services:
     networks:
       - lws-network
 
+  demo-app:
+    build:
+      context: .
+      dockerfile: demo-app/Dockerfile
+    container_name: lws-demo-app
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=lws
+      - KEYCLOAK_CLIENT_ID=demo-client
+      - AUTHORIZATION_SERVER=http://keycloak:8080/realms/lws
+      - STORAGE_SERVER=http://storage-server:3001
+      - CID_RESOLVER=http://cid-resolver:3000
+      - DEMO_AGENT_ID=http://localhost:3002/agents/demo-agent
+    ports:
+      - "3002:3002"
+    depends_on:
+      - keycloak
+      - storage-server
+    networks:
+      - lws-network
+
 networks:
   lws-network:
     driver: bridge

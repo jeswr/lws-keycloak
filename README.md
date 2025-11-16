@@ -14,6 +14,22 @@ This project provides a complete, production-ready implementation of the LWS pro
 - Resolve Controlled Identifier Documents (CIDs) and DIDs
 - Handle token exchange flows compliant with OAuth 2.0
 
+## 🎯 Demo Application
+
+**Try the interactive demo!** We've included a complete web application that demonstrates both authentication suites:
+
+```bash
+# Start all services
+npm run docker:up
+
+# Set up Keycloak
+npm run keycloak:setup
+
+# Access the demo at http://localhost:3002
+```
+
+See [DEMO.md](./DEMO.md) for detailed instructions.
+
 ## Architecture
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for a detailed architectural specification.

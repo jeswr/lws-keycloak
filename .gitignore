@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+demo-app/node_modules/
+services/*/node_modules/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
