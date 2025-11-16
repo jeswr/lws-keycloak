@@ -8,7 +8,7 @@
     "build": "tsc",
     "dev": "tsx src/index.ts storage-server",
     "dev:all": "tsx src/index.ts all",
-    "dev:all:parallel": "concurrently -n \"keycloak,cid,storage\" -c \"blue,green,yellow\" \"npm run docker:keycloak\" \"npm run dev:cid\" \"npm run dev:storage\"",
+    "dev:all:parallel": "./scripts/dev-all.sh",
     "dev:storage": "cd services/storage-server && npm run dev",
     "dev:cid": "cd services/cid-resolver && npm run dev",
     "start": "node dist/index.js",
