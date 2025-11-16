@@ -6,7 +6,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx src/index.ts storage-server",
+    "dev:all": "tsx src/index.ts all",
+    "dev:storage": "cd services/storage-server && npm run dev",
+    "dev:cid": "cd services/cid-resolver && npm run dev",
     "start": "node dist/index.js",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
