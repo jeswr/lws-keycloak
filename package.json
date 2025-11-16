@@ -25,7 +25,9 @@
     "keycloak:setup": "tsx scripts/setup-keycloak.ts",
     "demo:install": "cd demo-app && npm install",
     "demo:setup": "./scripts/setup-demo.sh",
-    "demo:start": "./scripts/start-demo.sh"
+    "demo:start": "./scripts/start-demo.sh",
+    "demo:test": "cd demo-app && npm test",
+    "demo:test:ui": "cd demo-app && npm run test:ui"
   },
   "keywords": [
     "linked-web-storage",
