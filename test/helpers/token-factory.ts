@@ -1,4 +1,4 @@
-import { SignJWT, generateKeyPair } from 'jose';
+import { SignJWT, generateKeyPair, exportJWK } from 'jose';
 
 /**
  * Mock token factory for testing
@@ -34,6 +34,9 @@ export async function createMockToken(options: MockTokenOptions = {}): Promise<s
   // Generate or reuse key pair
   if (!cachedKeyPair) {
     cachedKeyPair = await generateKeyPair('RS256');
+    // Expose public JWKS for validator in test environment
+    const jwk = await exportJWK(cachedKeyPair.publicKey);
+    (globalThis as any).__TEST_JWKS = { keys: [{ ...jwk, kid: 'test-key-1', alg: 'RS256', use: 'sig' }] };
   }
 
   const { privateKey } = cachedKeyPair;
@@ -60,20 +63,9 @@ export async function createMockToken(options: MockTokenOptions = {}): Promise<s
 export async function getMockJWK() {
   if (!cachedKeyPair) {
     cachedKeyPair = await generateKeyPair('RS256');
+    const jwkInit = await exportJWK(cachedKeyPair.publicKey);
+    (globalThis as any).__TEST_JWKS = { keys: [{ ...jwkInit, kid: 'test-key-1', alg: 'RS256', use: 'sig' }] };
   }
-
-  const { publicKey } = cachedKeyPair;
-  const jwk = await exportJWK(publicKey);
-  
-  return {
-    ...jwk,
-    kid: 'test-key-1',
-    alg: 'RS256',
-    use: 'sig'
-  };
-}
-
-async function exportJWK(key: CryptoKey) {
-  const exported = await crypto.subtle.exportKey('jwk', key);
-  return exported;
+  const jwk = await exportJWK(cachedKeyPair.publicKey);
+  return { ...jwk, kid: 'test-key-1', alg: 'RS256', use: 'sig' };
 }
