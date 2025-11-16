@@ -56,11 +56,17 @@ function runService(serviceName: string) {
 }
 
 if (service === 'all') {
-  console.log('🚀 Starting all services...\n');
-  console.log('Note: For better control, consider running services individually:');
-  console.log('  - cd services/cid-resolver && npm run dev');
-  console.log('  - cd services/storage-server && npm run dev');
-  console.log('Or use Docker Compose: npm run docker:up\n');
+  console.log('🚀 Starting Node.js services...\n');
+  console.log('⚠️  Note: This only starts the CID Resolver and Storage Server.');
+  console.log('   The Keycloak Authorization Server (port 8080) needs to be started separately:\n');
+  console.log('   Option 1 - Full Docker stack:');
+  console.log('     npm run docker:up\n');
+  console.log('   Option 2 - Keycloak via Docker + Services locally:');
+  console.log('     npm run docker:keycloak  (in one terminal)');
+  console.log('     npm run dev:all          (in another terminal)\n');
+  console.log('   Option 3 - Run services individually:');
+  console.log('     cd services/cid-resolver && npm run dev');
+  console.log('     cd services/storage-server && npm run dev\n');
   
   const cidResolver = runService('cid-resolver');
   const storageServer = runService('storage-server');
