@@ -10,8 +10,8 @@ npm run dev:all:parallel &
 SERVICES_PID=$!
 
 # Wait for services to start
-echo "⏳ Waiting for services to start (10 seconds)..."
-sleep 10
+echo "⏳ Waiting for services to start (20 seconds)..."
+sleep 20
 
 # Start demo app in background
 echo "🎨 Starting demo app..."

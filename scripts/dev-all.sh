@@ -7,6 +7,7 @@ cleanup() {
   
   # Kill Node.js services
   pkill -f "tsx watch" 2>/dev/null
+  pkill -f "tsx src" 2>/dev/null
   
   # Stop Docker services
   echo "   Stopping Docker containers..."
@@ -26,15 +27,28 @@ echo ""
 echo "   Starting Keycloak + PostgreSQL + Redis..."
 npm run docker:keycloak
 
-# Wait a moment for Docker to start
-sleep 2
+# Wait for Keycloak to be ready
+echo "   Waiting for Keycloak to be ready..."
+sleep 15
 
-# Start Node.js services with concurrently
-concurrently --kill-others-on-fail --kill-others \
-  -n "cid,storage" \
-  -c "green,yellow" \
-  "npm run dev:cid" \
-  "npm run dev:storage"
+# Start Node.js services in background
+echo "   Starting CID resolver..."
+npm run dev:cid > /tmp/lws-cid.log 2>&1 &
+CID_PID=$!
 
-# If concurrently exits, cleanup
-cleanup
+echo "   Starting Storage server..."
+npm run dev:storage > /tmp/lws-storage.log 2>&1 &
+STORAGE_PID=$!
+
+echo ""
+echo "✅ All services started!"
+echo ""
+echo "📋 Logs:"
+echo "   CID resolver: tail -f /tmp/lws-cid.log"
+echo "   Storage server: tail -f /tmp/lws-storage.log"
+echo ""
+echo "Press Ctrl+C to stop all services"
+echo ""
+
+# Wait for background processes
+wait
