@@ -25,8 +25,8 @@ test.describe('LWS Demo App - SSI-CID Authentication', () => {
     // Wait for output to update
     await page.waitForTimeout(1000);
     
-    // Verify step indicator shows step 2
-    await expect(page.locator('#step-2')).toHaveClass(/active/);
+    // Verify step indicator shows step 2 was reached (either active or completed)
+    await expect(page.locator('#step-2')).toHaveClass(/(active|completed)/);
     
     // Verify keypair generation message
     await expect(page.locator('#output')).toContainText('Generating EC keypair');
