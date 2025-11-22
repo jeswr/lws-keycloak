@@ -9,7 +9,7 @@ pnpm-lock.yaml
 # Build outputs
 dist/
 build/
-*.js
+# *.js
 *.js.map
 *.d.ts
 !vitest.config.ts

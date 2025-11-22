@@ -2,6 +2,8 @@
 
 A minimal web application demonstrating authentication using LWS authentication suites.
 
+> Note: End-to-end (E2E) tests require Docker with Keycloak running locally.
+
 ## Features
 
 This demo application showcases two authentication suites defined in the LWS specification:
@@ -40,6 +42,25 @@ The demo follows the complete LWS authentication flow:
    - Use Bearer authentication scheme
 
 ## Setup
+
+### E2E Testing (OpenID Connect)
+
+1. Start Docker Desktop (macOS) and ensure the daemon is running.
+2. In repo root, start services:
+```bash
+npm run demo:start
+```
+3. In a new terminal, create the Keycloak test user and client (one-time):
+```bash
+npm run keycloak:test-user
+```
+4. Run the E2E Playwright test from `demo-app`:
+```bash
+cd demo-app
+npx playwright test tests/oidc-e2e.spec.ts --headed
+```
+
+If Keycloak is slow to start, the tests will wait up to 60s for readiness.
 
 1. Install dependencies:
 ```bash

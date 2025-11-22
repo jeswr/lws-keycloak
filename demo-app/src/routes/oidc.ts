@@ -1,8 +1,27 @@
 import { Router, Request, Response } from 'express';
 import fetch from 'node-fetch';
 import { config } from '../config.js';
+import crypto from 'crypto';
 
 const router = Router();
+
+// Helper function to generate PKCE code verifier and challenge
+function generatePKCE() {
+  // Generate code verifier (random string)
+  const codeVerifier = crypto.randomBytes(32).toString('base64url');
+  
+  // Generate code challenge (SHA256 hash of verifier)
+  const codeChallenge = crypto
+    .createHash('sha256')
+    .update(codeVerifier)
+    .digest('base64url');
+  
+  return {
+    codeVerifier,
+    codeChallenge,
+    codeChallengeMethod: 'S256',
+  };
+}
 
 // OpenID Connect configuration endpoint
 router.get('/config', async (_req: Request, res: Response) => {
@@ -29,6 +48,7 @@ router.get('/config', async (_req: Request, res: Response) => {
 router.get('/auth-url', (_req: Request, res: Response) => {
   const state = Math.random().toString(36).substring(7);
   const nonce = Math.random().toString(36).substring(7);
+  const pkce = generatePKCE();
   
   const params = new URLSearchParams({
     client_id: config.keycloak.clientId,
@@ -37,32 +57,46 @@ router.get('/auth-url', (_req: Request, res: Response) => {
     scope: 'openid profile email',
     state,
     nonce,
+    code_challenge: pkce.codeChallenge,
+    code_challenge_method: pkce.codeChallengeMethod,
     // Request audience for the authorization server
     resource: config.authorizationServer,
   });
   
   const authUrl = `${config.keycloak.url}/realms/${config.keycloak.realm}/protocol/openid-connect/auth?${params}`;
   
-  res.json({ authUrl, state, nonce });
+  res.json({ authUrl, state, nonce, codeVerifier: pkce.codeVerifier });
 });
 
 // Exchange authorization code for ID token
 router.post('/token', async (req: Request, res: Response) => {
   try {
-    const { code } = req.body;
+    const { code, codeVerifier } = req.body;
     
     if (!code) {
       return res.status(400).json({ error: 'Authorization code is required' });
     }
     
+    if (!codeVerifier) {
+      return res.status(400).json({ error: 'Code verifier is required for PKCE' });
+    }
+    
     const tokenUrl = `${config.keycloak.url}/realms/${config.keycloak.realm}/protocol/openid-connect/token`;
     const redirectUri = `http://localhost:${config.port}/oidc-callback`;
     
+    console.log('[OIDC] Exchanging code for tokens', {
+      hasCode: Boolean(code),
+      codeSnippet: String(code).substring(0, 12) + '...',
+      hasVerifier: Boolean(codeVerifier),
+      verifierLen: String(codeVerifier).length,
+    });
+
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
       client_id: config.keycloak.clientId,
       redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
     });
     
     const response = await fetch(tokenUrl, {
@@ -75,7 +109,11 @@ router.post('/token', async (req: Request, res: Response) => {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Token exchange failed:', errorText);
+      console.error('[OIDC] Token exchange failed', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText.substring(0, 300)
+      });
       return res.status(response.status).json({ 
         error: 'Token exchange failed',
         details: errorText 
@@ -83,6 +121,13 @@ router.post('/token', async (req: Request, res: Response) => {
     }
     
     const data = await response.json() as any;
+
+    console.log('[OIDC] Token exchange success', {
+      hasIdToken: Boolean(data.id_token),
+      hasAccessToken: Boolean(data.access_token),
+      expiresIn: data.expires_in,
+      idTokenSnippet: data.id_token ? data.id_token.substring(0, 25) + '...' : null,
+    });
     
     res.json({
       idToken: data.id_token,
@@ -91,7 +136,7 @@ router.post('/token', async (req: Request, res: Response) => {
       expiresIn: data.expires_in,
     });
   } catch (error) {
-    console.error('Error exchanging code for token:', error);
+    console.error('[OIDC] Unexpected error during token exchange', error);
     res.status(500).json({ error: 'Failed to exchange authorization code' });
   }
 });
